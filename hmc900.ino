@@ -118,6 +118,39 @@ repurposed to try controlling HMC900
 
 
 
+// set pin 10 as the slave select for the digital pot:
+const int slaveSelectPin = 10;
+
+void setup() {
+  // set the slaveSelectPin as an output:
+  Serial.begin(115200);
+  pinMode (slaveSelectPin, OUTPUT);
+  // initialize SPI:
+  SPI.begin();
+  SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
+  SPI.endTransaction();
+  delay(1000);
+  //writeRegister(1, 0b1100);
+  //enableFilterQ(true);
+  setCalibrationClockFrequency(20);
+  delay(1000);
+}
+
+void loop() {
+  //readRegister(OTPVALUESREG);
+  //readRegister(SETTINGSREG);
+  readRegister(5);
+  delay(3000);
+}
+
+void writeCoaseBandwidthCode(byte code){
+  
+}
+
+void writeFineBandwidthCode(byte code){
+  
+}
+
 void bandwidthCodesCalculation(float cal_count)
 {
   float ctune = cal_count/10370000;
@@ -125,8 +158,9 @@ void bandwidthCodesCalculation(float cal_count)
   Serial.print(fBW_norm_coarse);
   float fBW_norm_coarse_typ = 0.0;
   char coarse_bandwidth_code = 0;
+  if (fBW_norm_coarse >= 2.764 && fBW_norm_coarse <= 60.50){
 
-  if (fBW_norm_coarse > 2.764 && fBW_norm_coarse < 4.235){
+    if (fBW_norm_coarse >= 2.764 && fBW_norm_coarse < 4.235){
       fBW_norm_coarse_typ = 3.5;    
       coarse_bandwidth_code = CBANDWHDTH3;
     } else if (fBW_norm_coarse > 3.948 && fBW_norm_coarse < 6.050){
@@ -150,90 +184,72 @@ void bandwidthCodesCalculation(float cal_count)
     } else if (fBW_norm_coarse > 27.637 && fBW_norm_coarse < 42.351){
         fBW_norm_coarse_typ = 35.0;   
         coarse_bandwidth_code = CBANDWHDTH35;
-    } else if (fBW_norm_coarse > 39.480 && fBW_norm_coarse < 60.50){
+    } else if (fBW_norm_coarse > 39.480 && fBW_norm_coarse <= 60.50){
         fBW_norm_coarse_typ = 50.0;   
         coarse_bandwidth_code = CBANDWHDTH50;
-    } else {
-        Serial.print("fBW_norm_coarse not within parameters:");
-        Serial.println(fBW_norm_coarse);
     }
+    writeCoaseBandwidthCode(coarse_bandwidth_code);
+    Serial.print("coarse_bandwidth_code: ");
+    Serial.println(coarse_bandwidth_code);
+  } else {
+      Serial.print("fBW_norm_coarse not within parameters: ");
+      Serial.println(fBW_norm_coarse);
+  }
 
   float fine_tune_ratio = fBW_norm_coarse / fBW_norm_coarse_typ;
   float fine_tune_ratio_typ = 0.0;
   char fine_bandwidth_code = 0;
+  Serial.print("fine_tune_ratio: ");
+  Serial.println(fine_tune_ratio);
 
-  if (fine_tune_ratio > 0.790 && fine_tune_ratio < 0.818){
+  if (fine_tune_ratio >= 0.790 && fine_tune_ratio <= 1.210){
+    if (fine_tune_ratio >= 0.790 && fine_tune_ratio < 0.818){
         fine_tune_ratio_typ = 0.803;    
         fine_bandwidth_code = FBANDWHDTH0803;
-    } else if (fine_tune_ratio > 0.818 && fine_tune_ratio < 0.846){
+    } else if (fine_tune_ratio >= 0.818 && fine_tune_ratio < 0.846){
         fine_tune_ratio_typ = 0.832;   
         fine_bandwidth_code = FBANDWHDTH0832;
-    } else if (fine_tune_ratio > 0.846 && fine_tune_ratio < 0.878){
+    } else if (fine_tune_ratio >= 0.846 && fine_tune_ratio < 0.878){
         fine_tune_ratio_typ = 0.862;   
         fine_bandwidth_code = FBANDWHDTH0862;
-    } else if (fine_tune_ratio > 0.878 && fine_tune_ratio < 0.909){
+    } else if (fine_tune_ratio >= 0.878 && fine_tune_ratio < 0.909){
         fine_tune_ratio_typ = 0.893;   
         fine_bandwidth_code = FBANDWHDTH0893;
-    } else if (fine_tune_ratio > 0.909 && fine_tune_ratio < 0.943){
+    } else if (fine_tune_ratio >= 0.909 && fine_tune_ratio < 0.943){
         fine_tune_ratio_typ = 0.926;   
         fine_bandwidth_code = FBANDWHDTH0926;
-    } else if (fine_tune_ratio > 0.943 && fine_tune_ratio < 0.976){
+    } else if (fine_tune_ratio >= 0.943 && fine_tune_ratio < 0.976){
         fine_tune_ratio_typ = 0.959;   
         fine_bandwidth_code = FBANDWHDTH0959;
-    } else if (fine_tune_ratio > 0.976 && fine_tune_ratio < 1.012){
+    } else if (fine_tune_ratio >= 0.976 && fine_tune_ratio < 1.012){
         fine_tune_ratio_typ = 0.994;   
         fine_bandwidth_code = FBANDWHDTH0994;
-    } else if (fine_tune_ratio > 1.012 && fine_tune_ratio < 1.048){
+    } else if (fine_tune_ratio >= 1.012 && fine_tune_ratio < 1.048){
         fine_tune_ratio_typ = 1.030;   
         fine_bandwidth_code = FBANDWHDTH1030;
-    } else if (fine_tune_ratio > 1.048 && fine_tune_ratio < 1.087){
+    } else if (fine_tune_ratio >= 1.048 && fine_tune_ratio < 1.087){
         fine_tune_ratio_typ = 1.068;   
         fine_bandwidth_code = FBANDWHDTH1068;
-    } else if (fine_tune_ratio > 1.087 && fine_tune_ratio < 1.128){
+    } else if (fine_tune_ratio >= 1.087 && fine_tune_ratio < 1.128){
         fine_tune_ratio_typ = 1.107;   
         fine_bandwidth_code = FBANDWHDTH1107;
-    } else if (fine_tune_ratio > 1.128 && fine_tune_ratio < 1.169){
+    } else if (fine_tune_ratio >= 1.128 && fine_tune_ratio < 1.169){
         fine_tune_ratio_typ = 1.148;   
         fine_bandwidth_code = FBANDWHDTH1148;
-    } else if (fine_tune_ratio > 1.169 && fine_tune_ratio < 1.210){
+    } else if (fine_tune_ratio >= 1.169 && fine_tune_ratio <= 1.210){
         fine_tune_ratio_typ = 1.189;   
         fine_bandwidth_code = FBANDWHDTH1189;
-    } else {
-        Serial.print("fine_tune_ratio not within parameters:");
-        Serial.println(fine_tune_ratio);
     }
-
+    writeFineBandwidthCode(fine_bandwidth_code);
+    Serial.print("fine_bandwidth_code: ");
+    Serial.println(fine_bandwidth_code);
+  } else {
+      Serial.print("fine_tune_ratio not within parameters: ");
+      Serial.println(fine_tune_ratio);
+  }
 
 }
 
-
-
-
-// set pin 10 as the slave select for the digital pot:
-const int slaveSelectPin = 10;
-
-void setup() {
-  // set the slaveSelectPin as an output:
-  Serial.begin(115200);
-  pinMode (slaveSelectPin, OUTPUT);
-  // initialize SPI:
-  SPI.begin();
-  SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
-  SPI.endTransaction();
-  delay(1000);
-  //writeRegister(1, 0b1100);
-  //enableFilterQ(true);
-  setCalibrationClockFrequency(20);
-  delay(1000);
-}
-
-void loop() {
-
-//readRegister(OTPVALUESREG);
-//readRegister(SETTINGSREG);
-readRegister(5);
-delay(3000);
-}
 
 
 
@@ -294,12 +310,15 @@ void enableFilterQ(bool en)
   }
   
 }
+
+
+
 void enableDoubler(bool en)
 {
   uint32_t enableRegister = readRegister(ENABLEREG);
   if (((enableRegister >> 3) &0b11111) == ENABLEREG)
   {
-    Serial.println("reading succesfull"); 
+    Serial.println("reading of ENABLEREG succesfull"); 
 
     enableRegister = enableRegister>>8; //pour enlever l'entete
 
@@ -358,6 +377,12 @@ void enableDoubler(bool en)
   
 }
 
+void softReset()
+{
+  writeRegister(0, 0x20);
+  writeRegister(0, 0x00);
+}
+
 void setCalibrationClockFrequency(uint32_t freq)
 {
   /*
@@ -398,7 +423,7 @@ void setCalibrationClockFrequency(uint32_t freq)
       Serial.println("Calibration frequency set successfully "); 
     }else{
       Serial.print("Setting of calibration frequency failed : "); 
-      Serial.println((1.0/clockRegister)*1000000); 
+      Serial.println((uint32_t)(1.0/clockRegister)*1000000); 
       Serial.print("instead of : "); 
       Serial.println(freq); 
     }
@@ -450,9 +475,8 @@ unsigned int readRegister(byte reg) {
 
   //byte dataToSend = reg;  
 
-  uint32_t dataToSend = reg; 
-  dataToSend = dataToSend << 8;  
-  dataToSend += CHIPADDR;  
+  uint32_t dataToSend = (reg << 8); 
+  dataToSend |= CHIPADDR;  
 
   //Serial.print("dataToSend: ");
   //Serial.println(dataToSend, BIN);
@@ -472,7 +496,7 @@ unsigned int readRegister(byte reg) {
   //delay(50);
   digitalWrite(slaveSelectPin, LOW); // take the chip select low to begin th second portion of the READ cycle
   
-  dataToSend = 0x00000005;  
+  dataToSend = CHIPADDR;  
   
   temp = SPI.transfer16(dataToSend >> 16);
   response = temp;
@@ -487,6 +511,8 @@ unsigned int readRegister(byte reg) {
   //Serial.print("dataToSend while reading: ");
   //Serial.println(dataToSend, BIN);
   
+  Serial.print("RAW response: ");
+  Serial.println(response, BIN);
   
   response = (response<<1)+1; //pour corriger en attendant de savoir pourquoi le LSB(et pas les autre) se retrouve en MSB
   
