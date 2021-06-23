@@ -130,9 +130,9 @@ void setup() {
   SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
   SPI.endTransaction();
   delay(1000);
-  //writeRegister(1, 0b1100);
-  //enableFilterQ(true);
-  setCalibrationClockFrequency(20);
+  writeCoaseBandwidthCode(CBANDWHDTH20);
+  //setCalibrationClockFrequency(20);
+  
 }
 
 void loop() {
@@ -140,12 +140,53 @@ void loop() {
   //readRegister(SETTINGSREG);
 }
 
-void writeCoaseBandwidthCode(byte code){
+
+
+void writeCoaseBandwidthCode(uint32_t cbandwidthcode){
   
+  uint32_t settingRegister = readRegister(SETTINGSREG);
+  if (((settingRegister >> 3) &0b11111) == SETTINGSREG)
+  {
+    //Serial.println("reading SETTINGSREG succesfull"); 
+
+    settingRegister = settingRegister>>8; //pour enlever l'entete
+    settingRegister = settingRegister & 0b111111111111110000111111;
+    settingRegister |= (cbandwidthcode << 6);
+    writeRegister(SETTINGSREG, settingRegister);
+    
+    settingRegister = readRegister(SETTINGSREG);
+    settingRegister = settingRegister>>8; //pour enlever l'entete
+    if (((settingRegister >> 6) & 0b1111) == cbandwidthcode)  
+    {
+      Serial.println("Setting of the coarse bandwidth code successfull");       
+    }else {
+      Serial.println("Failed setting of the coarse bandwidth code");      
+    }  
+  }else {
+    Serial.println("failed reading of SETTINGSREG"); 
+  }
 }
 
-void writeFineBandwidthCode(byte code){
+void writeFineBandwidthCode(uint32_t fbandwidthcode){
   
+  uint32_t calibrationRegister = readRegister(CALREG);
+  if (((calibrationRegister >> 3) &0b11111) == CALREG)
+  {
+    //Serial.println("reading CALREG succesfull"); 
+
+    writeRegister(CALREG, fbandwidthcode);
+    
+    calibrationRegister = readRegister(CALREG);
+    calibrationRegister = calibrationRegister>>8; //pour enlever l'entete
+    if (calibrationRegister == fbandwidthcode)  
+    {
+      Serial.println("Setting of the fine bandwidth code successfull");       
+    }else {
+      Serial.println("Failed setting of the fine bandwidth code");      
+    }  
+  }else {
+    Serial.println("failed reading of CALREG"); 
+  }
 }
 
 void bandwidthCodesCalculation(float cal_count)
