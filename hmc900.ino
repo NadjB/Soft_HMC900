@@ -127,20 +127,17 @@ void setup() {
   pinMode (slaveSelectPin, OUTPUT);
   // initialize SPI:
   SPI.begin();
-  SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
+  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
   SPI.endTransaction();
   delay(1000);
   //writeRegister(1, 0b1100);
   //enableFilterQ(true);
   setCalibrationClockFrequency(20);
-  delay(1000);
 }
 
 void loop() {
   //readRegister(OTPVALUESREG);
   //readRegister(SETTINGSREG);
-  readRegister(5);
-  delay(3000);
 }
 
 void writeCoaseBandwidthCode(byte code){
@@ -318,7 +315,7 @@ void enableDoubler(bool en)
   uint32_t enableRegister = readRegister(ENABLEREG);
   if (((enableRegister >> 3) &0b11111) == ENABLEREG)
   {
-    Serial.println("reading of ENABLEREG succesfull"); 
+    //Serial.println("reading of ENABLEREG succesfull"); 
 
     enableRegister = enableRegister>>8; //pour enlever l'entete
 
@@ -371,7 +368,7 @@ void enableDoubler(bool en)
         
       }    
   }else{
-    Serial.print("reading failed: "); 
+    Serial.print("reading of ENABLEREG failed: "); 
     Serial.println(enableRegister); 
   }
   
@@ -383,50 +380,63 @@ void softReset()
   writeRegister(0, 0x00);
 }
 
-void setCalibrationClockFrequency(uint32_t freq)
+void setCalibrationClockFrequency(uint32_t freqMhz)
 {
   /*
   Entre frequency in Mhz between 20 and 80
   */
-  uint32_t periode = (uint32_t)((1.0/freq)*1000000); //periode en pico seconde
-  
+  uint32_t periode = 0;
   Serial.print("Setting calibration frequency at: "); 
-  Serial.println(freq); 
-  
-  Serial.print("Periode of: "); 
-  Serial.println(periode); 
-  Serial.println(periode, BIN); 
-  Serial.println(""); 
+  Serial.print(freqMhz); 
+  Serial.println("Mhz"); 
 
-  if (freq >= 20 && freq < 40)
+  if (freqMhz >= 20 && freqMhz < 40)
   {
+    periode = (uint32_t)((1.0/(freqMhz*2))*1000000); //periode en pico seconde
     enableDoubler(true);
     writeRegister(CLKPERIODREG, periode);
+    /*Serial.print("Periode of: "); 
+    Serial.println(periode); 
+    Serial.println(periode, BIN); 
+    Serial.println(""); */
   }
-  else if(freq >= 40 && freq <= 80)  
+  else if(freqMhz >= 40 && freqMhz <= 80)  
   {
+    periode = (uint32_t)((1.0/(freqMhz))*1000000); //periode en pico seconde
     enableDoubler(false);
     writeRegister(CLKPERIODREG, periode);
+    /*Serial.print("Periode of: "); 
+    Serial.println(periode); 
+    Serial.println(periode, BIN); 
+    Serial.println(""); */
+
   }else{
     Serial.print("Frequency not between 20 and 80: ");
-    Serial.println(freq);
+    Serial.println(freqMhz);
   }
 
   uint32_t clockRegister = readRegister(CLKPERIODREG);
+  
   if (((clockRegister >> 3) &0b11111) == CLKPERIODREG)
   {
-    Serial.println("reading of CLKPERIODREG succesfull"); 
+    //Serial.println("reading of CLKPERIODREG succesfull"); 
 
     clockRegister = clockRegister>>8; //pour enlever l'entete
     if (clockRegister == periode)
     {
       Serial.println("Calibration frequency set successfully "); 
+      Serial.println(""); 
     }else{
       Serial.print("Setting of calibration frequency failed : "); 
       Serial.println((uint32_t)(1.0/clockRegister)*1000000); 
       Serial.print("instead of : "); 
-      Serial.println(freq); 
+      Serial.println(freqMhz); 
+      Serial.print("clockRegister : "); 
+      Serial.println(clockRegister); 
+      Serial.println(""); 
     }
+  }else {
+    Serial.println("failed reading of CLKPERIODREG"); 
   }
 
 
@@ -436,10 +446,7 @@ void setCalibrationClockFrequency(uint32_t freq)
 unsigned int writeRegister(byte reg, uint32_t data) {
 
   uint32_t response = 0;
-  uint16_t temp;
-
-  Serial.print("register to write: ");
-  Serial.println(reg, HEX);
+  uint8_t temp;
 
   //byte dataToSend = reg;  
 
@@ -447,13 +454,19 @@ unsigned int writeRegister(byte reg, uint32_t data) {
   dataToSend |= (reg << 3);
   dataToSend |= CHIPADDR;
 
+  /*Serial.print("register to write: ");
+  Serial.println(reg, HEX);
+
+  Serial.print("data to write: ");
+  Serial.println(dataToSend, BIN);
+  Serial.println("");*/
   
   digitalWrite(slaveSelectPin, LOW); // take the chip select low to select the device
     
-  temp = SPI.transfer16(dataToSend >> 16);
-  //response = temp;
-  
-  temp= SPI.transfer16(dataToSend);
+  temp = SPI.transfer(dataToSend >> 24);
+  temp = SPI.transfer(dataToSend >> 16);
+  temp = SPI.transfer(dataToSend >> 8);
+  temp= SPI.transfer(dataToSend);
   //response = (response << 16) | temp;
   //Serial.println(response, BIN);
 
@@ -463,7 +476,7 @@ unsigned int writeRegister(byte reg, uint32_t data) {
 }
 
 
-unsigned int readRegister(byte reg) {
+uint32_t readRegister(byte reg) {
 
   byte inByte = 0;           // incoming byte from the SPI
 
@@ -483,12 +496,12 @@ unsigned int readRegister(byte reg) {
 
   digitalWrite(slaveSelectPin, LOW); // take the chip select low to select the device
   //SPI.transfer(dataToSend);// send the device the register you want to read
-    
-  // Split Request into 8-bit sections and sending them one byte at a time
-  temp = SPI.transfer16(dataToSend >> 16);
-  //response = temp;
   
-  temp= SPI.transfer16(dataToSend);
+  // Split Request into 8-bit sections and sending them one byte at a time
+  temp = SPI.transfer(dataToSend >> 24);
+  temp = SPI.transfer(dataToSend >> 16);
+  temp = SPI.transfer(dataToSend >> 8);
+  temp= SPI.transfer(dataToSend);
   //response = (response << 16) | temp;
   //Serial.println(response, BIN);
 
@@ -497,12 +510,15 @@ unsigned int readRegister(byte reg) {
   digitalWrite(slaveSelectPin, LOW); // take the chip select low to begin th second portion of the READ cycle
   
   dataToSend = CHIPADDR;  
-  
-  temp = SPI.transfer16(dataToSend >> 16);
+
+  temp = SPI.transfer(dataToSend >> 24);
   response = temp;
-  
-  temp= SPI.transfer16(dataToSend);
-  response = (response << 16) | temp;
+  temp = SPI.transfer(dataToSend >> 16);
+  response = (response << 8) | temp;
+  temp = SPI.transfer(dataToSend >> 8);
+  response = (response << 8) | temp;
+  temp= SPI.transfer(dataToSend);
+  response = (response << 8) | temp;
   
   digitalWrite(slaveSelectPin, HIGH);
 
@@ -511,11 +527,11 @@ unsigned int readRegister(byte reg) {
   //Serial.print("dataToSend while reading: ");
   //Serial.println(dataToSend, BIN);
   
-  Serial.print("RAW response: ");
-  Serial.println(response, BIN);
+  //Serial.print("RAW response: ");
+  //Serial.println(response, BIN);
   
   response = (response<<1)+1; //pour corriger en attendant de savoir pourquoi le LSB(et pas les autre) se retrouve en MSB
-  
+  /*
   Serial.print("response: ");
   Serial.println(response, BIN);
 
@@ -525,7 +541,7 @@ unsigned int readRegister(byte reg) {
   Serial.println((response>>8), BIN);
 
   Serial.println("");
-  Serial.println("");
+  Serial.println("");*/
   
   return (response) ; 
 
