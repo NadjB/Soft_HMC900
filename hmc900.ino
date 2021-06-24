@@ -140,7 +140,11 @@ void loop() {
   //readRegister(SETTINGSREG);
 }
 
+void builtInSelfTest(uint32_t calFreqMhz){
+  softReset();
+  setCalibrationClockFrequency(calFreqMhz);
 
+}
 
 void writeCoaseBandwidthCode(uint32_t cbandwidthcode){
   
@@ -289,8 +293,6 @@ void bandwidthCodesCalculation(float cal_count)
 }
 
 
-
-
 void enableFilterQ(bool en)
 {
   uint32_t enableRegister = readRegister(ENABLEREG);
@@ -413,6 +415,148 @@ void enableDoubler(bool en)
     Serial.println(enableRegister); 
   }
   
+}
+
+void enableBistMode(bool en)
+{
+  uint32_t rcBistRegister = readRegister(RCBISTENABLEREG);
+  if (((rcBistRegister >> 3) &0b11111) == RCBISTENABLEREG)
+  {
+    //Serial.println("reading of RCBISTENABLEREG succesfull"); 
+
+    rcBistRegister = rcBistRegister>>8; //pour enlever l'entete
+
+      uint32_t bistBit = 0b1; //le bit correspondant a "enable_RCBIST_mode"
+
+      if (((rcBistRegister) & bistBit)>0) // si RC-BIST est ENABLE
+      {
+        if (!en) // si on veut le desactiver
+        {
+          rcBistRegister = rcBistRegister ^ bistBit;
+          writeRegister(RCBISTENABLEREG, rcBistRegister);
+          rcBistRegister = readRegister(RCBISTENABLEREG);
+          rcBistRegister = rcBistRegister >> 8;
+          if (((rcBistRegister) & bistBit) == 0)
+          {
+            Serial.println("RC-BIST is now disabled"); 
+            Serial.println(""); 
+          }else{
+            Serial.println("RC-BIST disabling failed"); 
+            Serial.println(""); 
+          }
+        }
+        else
+        {
+          Serial.println("RC-BIST is already enable"); 
+          Serial.println(""); 
+        }
+      }else //si RC-BIST est DISABLE
+      {
+        if (en)  // si on veut l'activer
+        {
+          rcBistRegister = rcBistRegister | bistBit;
+          writeRegister(RCBISTENABLEREG, rcBistRegister);
+          rcBistRegister = readRegister(RCBISTENABLEREG);
+          rcBistRegister = rcBistRegister>>8;
+          if (((rcBistRegister) & bistBit) > 0)
+          {
+            Serial.println("RC-BIST is now enable"); 
+            Serial.println(""); 
+          }else{
+            Serial.println("RC-BIST enabling failed"); 
+            Serial.println(""); 
+          }
+        }
+        else{
+          Serial.println("RC-BIST is already disable"); 
+          Serial.println(""); 
+        }
+        
+        
+      }    
+  }else{
+    Serial.print("reading of RCBISTENABLEREG failed: "); 
+    Serial.println(rcBistRegister); 
+  }
+}
+
+bool enableBit(bool toEnable, uint32_t bitToEnable, byte registerOfBit)
+{
+  /*
+  toEnable:
+  if yes toEnable=true
+  if you wich to disable toEnable=false
+
+  bitToEnable:
+  if it is the third bit of the register  bitToEnable=0b100
+  if fifth 0b10000
+  */
+  
+  uint32_t registerBits = readRegister(registerOfBit);
+  if (((registerBits >> 3) &0b11111) == registerOfBit)
+  {
+    //Serial.println("reading of register succesfull"); 
+
+    registerBits = registerBits >> 8; //pour enlever l'entete
+
+      if (((registerBits) & bitToEnable)>0) // si le bit est ENABLE
+      {
+        if (!toEnable) // si on veut le desactiver
+        {
+          registerBits = registerBits ^ bitToEnable;
+          writeRegister(registerOfBit, registerBits);
+
+          registerBits = readRegister(registerOfBit); //verifier le resultat de l'action
+          registerBits = registerBits >> 8;
+          if (((registerBits) & bitToEnable) == 0)
+          {
+            Serial.println("bit is now disabled"); 
+            Serial.println(""); 
+            return true;
+          }else{
+            Serial.println("bit disabling failed"); 
+            Serial.println(""); 
+            return false;
+          }
+        }
+        else
+        {
+          Serial.println("bit is already enable"); 
+          Serial.println(""); 
+          return true;
+        }
+      }else //si le bit est DISABLE
+      {
+        if (toEnable)  // si on veut l'activer
+        {
+          registerBits = registerBits | bitToEnable;
+          writeRegister(registerOfBit, registerBits);
+
+          registerBits = readRegister(registerOfBit); //verifier le resultat de l'action
+          registerBits = registerBits >> 8;
+          if (((registerBits) & bitToEnable) > 0)
+          {
+            Serial.println("bit is now enable"); 
+            Serial.println(""); 
+            return true;
+          }else{
+            Serial.println("bit enabling failed"); 
+            Serial.println(""); 
+            return false;
+          }
+        }
+        else{
+          Serial.println("bit is already disable"); 
+          Serial.println(""); 
+          return true;
+        }
+        
+        
+      }    
+  }else{
+    Serial.print("reading of registerOfBit failed: "); 
+    Serial.println(registerBits); 
+  }
 }
 
 void softReset()
