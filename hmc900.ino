@@ -75,7 +75,7 @@ repurposed to try controlling HMC900
 #define CALREG 0x03 //
 #define CALREGDEF 0b0000 //
 
-#define LAUNCHCALREG 0x04 //
+#define CALBISTRSTROBEREG 0x04 //
 
 #define CLKPERIODREG 0x05 //
 #define CLKPERIODREGDEF 0x0000 //
@@ -140,11 +140,61 @@ void loop() {
   //readRegister(SETTINGSREG);
 }
 
-void builtInSelfTest(uint32_t calFreqMhz){
+
+void filterBandwidthSetting(uint32_t calFreqMhz){
+  uint32_t cal_count = calibration(calFreqMhz);
+  setBandwidthCodes(cal_count);
+  enableBit(true, ENABLEREG, 0b1000);
+}
+
+
+uint32_t calibration(uint32_t calFreqMhz) {
+  setCalibrationClockFrequency(calFreqMhz);
+  enableBit(true, ENABLEREG, 0b10); //Enable RC Calibration circuit
+
+  Serial.print("If you forgot to plug connecte and launch the signal generator for the calibration at "); 
+  Serial.print(calFreqMhz); 
+  Serial.println(" Mhz... Well, too late."); 
+  enableBit(true, CALBISTRSTROBEREG, 1); //write anithing in "Calibration/RC-BIST Strobe" register starts a calibration cycle.
+  delay(15); // time for the calibration > periode*2^18
+
+  uint32_t calResult = 0b10000;
+  Serial.println("cal: ");
+  while((calResult & 0b10000) > 0){
+    calResult = readRegister(CALSTATUSREG);
+    calResult = (calResult >> 8);
+    Serial.println(calResult, BIN);
+    delay(1);
+  }
+  return readRegister(CALCOUNTREG);
+}
+
+
+uint32_t builtInSelfTest(uint32_t calFreqMhz){
+
   softReset();
+
   setCalibrationClockFrequency(calFreqMhz);
 
+  enableBistMode(true);
+
+  Serial.print("If you forgot to plug connecte and launch the signal generator for the calibration at "); 
+  Serial.print(calFreqMhz); 
+  Serial.println(" Mhz... Well, too late."); 
+  enableBit(true, CALBISTRSTROBEREG, 1); //write anithing in "Calibration/RC-BIST Strobe" register starts a calibration cycle.
+  delay(15); // time for the calibration > periode*2^18
+  
+  uint32_t bistrResult = 0b10000000000000000;
+  Serial.println("bistrResult: ");
+  while((bistrResult & 0b10000000000000000) > 0){
+    bistrResult = readRegister(RCBISTOUTREG);
+    bistrResult = (bistrResult >> 8);
+    Serial.println(bistrResult, BIN);
+    delay(1);
+  }
+  return bistrResult;
 }
+
 
 void writeCoaseBandwidthCode(uint32_t cbandwidthcode){
   
@@ -171,6 +221,7 @@ void writeCoaseBandwidthCode(uint32_t cbandwidthcode){
   }
 }
 
+
 void writeFineBandwidthCode(uint32_t fbandwidthcode){
   
   uint32_t calibrationRegister = readRegister(CALREG);
@@ -193,8 +244,8 @@ void writeFineBandwidthCode(uint32_t fbandwidthcode){
   }
 }
 
-void bandwidthCodesCalculation(float cal_count)
-{
+
+void setBandwidthCodes(float cal_count){
   float ctune = cal_count/10370000;
   float fBW_norm_coarse = FREQWANTED * ctune;
   Serial.print(fBW_norm_coarse);
@@ -230,9 +281,9 @@ void bandwidthCodesCalculation(float cal_count)
         fBW_norm_coarse_typ = 50.0;   
         coarse_bandwidth_code = CBANDWHDTH50;
     }
-    writeCoaseBandwidthCode(coarse_bandwidth_code);
     Serial.print("coarse_bandwidth_code: ");
     Serial.println(coarse_bandwidth_code);
+    writeCoaseBandwidthCode(coarse_bandwidth_code);
   } else {
       Serial.print("fBW_norm_coarse not within parameters: ");
       Serial.println(fBW_norm_coarse);
@@ -282,9 +333,9 @@ void bandwidthCodesCalculation(float cal_count)
         fine_tune_ratio_typ = 1.189;   
         fine_bandwidth_code = FBANDWHDTH1189;
     }
-    writeFineBandwidthCode(fine_bandwidth_code);
     Serial.print("fine_bandwidth_code: ");
     Serial.println(fine_bandwidth_code);
+    writeFineBandwidthCode(fine_bandwidth_code);
   } else {
       Serial.print("fine_tune_ratio not within parameters: ");
       Serial.println(fine_tune_ratio);
@@ -293,8 +344,7 @@ void bandwidthCodesCalculation(float cal_count)
 }
 
 
-void enableFilterQ(bool en)
-{
+void enableFilterQ(bool en){
   uint32_t enableRegister = readRegister(ENABLEREG);
   if (((enableRegister >> 3) &0b11111) == ENABLEREG)
   {
@@ -352,9 +402,7 @@ void enableFilterQ(bool en)
 }
 
 
-
-void enableDoubler(bool en)
-{
+void enableDoubler(bool en){
   uint32_t enableRegister = readRegister(ENABLEREG);
   if (((enableRegister >> 3) &0b11111) == ENABLEREG)
   {
@@ -417,8 +465,8 @@ void enableDoubler(bool en)
   
 }
 
-void enableBistMode(bool en)
-{
+
+void enableBistMode(bool en){
   uint32_t rcBistRegister = readRegister(RCBISTENABLEREG);
   if (((rcBistRegister >> 3) &0b11111) == RCBISTENABLEREG)
   {
@@ -480,8 +528,8 @@ void enableBistMode(bool en)
   }
 }
 
-bool enableBit(bool toEnable, uint32_t bitToEnable, byte registerOfBit)
-{
+
+bool enableBit(bool toEnable, byte registerOfBit, uint32_t bitToEnable){
   /*
   toEnable:
   if yes toEnable=true
@@ -559,16 +607,16 @@ bool enableBit(bool toEnable, uint32_t bitToEnable, byte registerOfBit)
   }
 }
 
-void softReset()
-{
+
+void softReset(){
   writeRegister(0, 0x20);
   writeRegister(0, 0x00);
 }
 
-void setCalibrationClockFrequency(uint32_t freqMhz)
-{
+
+void setCalibrationClockFrequency(uint32_t freqMhz){
   /*
-  Entre frequency in Mhz between 20 and 80
+  Entre frequency in Mhz between 20 and 100
   */
   uint32_t periode = 0;
   Serial.print("Setting calibration frequency at: "); 
@@ -585,7 +633,7 @@ void setCalibrationClockFrequency(uint32_t freqMhz)
     Serial.println(periode, BIN); 
     Serial.println(""); */
   }
-  else if(freqMhz >= 40 && freqMhz <= 80)  
+  else if(freqMhz >= 40 && freqMhz <= 100)  
   {
     periode = (uint32_t)((1.0/(freqMhz))*1000000); //periode en pico seconde
     enableDoubler(false);
@@ -596,7 +644,7 @@ void setCalibrationClockFrequency(uint32_t freqMhz)
     Serial.println(""); */
 
   }else{
-    Serial.print("Frequency not between 20 and 80: ");
+    Serial.print("Frequency not between 20 and 100Mhz: ");
     Serial.println(freqMhz);
   }
 
