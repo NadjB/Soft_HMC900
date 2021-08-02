@@ -32,31 +32,9 @@ repurposed to try controlling HMC900
 
 
 // inslude the SPI library:
-#include <SPI.h>
+#include "HMC900.h"
 
-//define bits codes for commands
-#define CBANDWHDTH3 0b0000  // 2.764  < 3.5  < 4.235
-#define CBANDWHDTH5 0b0001  // 3.948  < 5.0  < 6.050
-#define CBANDWHDTH7 0b0010  // 5.527  < 7.0  < 8.470
-#define CBANDWHDTH10 0b0011 // 7.896  < 10.0 < 12.10
-#define CBANDWHDTH14 0b0100 // 11.055 < 14.0 < 16.94
-#define CBANDWHDTH20 0b0101 // 15.792 < 20.0 < 24.20
-#define CBANDWHDTH28 0b0110 // 22.109 < 28.0 < 33.88
-#define CBANDWHDTH35 0b0111 // 27.637 < 35.0 < 42.351
-#define CBANDWHDTH50 0b1000 // 39.480 < 50.0 < 60.50
 
-#define FBANDWHDTH0803 0b0000  // 0.790  < 0.803  < 0.818
-#define FBANDWHDTH0832 0b0001  // 0.818  < 0.832  < 0.846
-#define FBANDWHDTH0862 0b0010  // 0.846  < 0.862  < 0.878
-#define FBANDWHDTH0893 0b0011  // 0.878  < 0.893 < 0.909
-#define FBANDWHDTH0926 0b0100  // 0.909 < 0.926 < 0.943
-#define FBANDWHDTH0959 0b0101  // 0.943 < 0.959 < 0.976
-#define FBANDWHDTH0994 0b0110  // 0.976 < 0.994 < 1.012
-#define FBANDWHDTH1030 0b0111  // 1.012 < 1.030 < 1.048
-#define FBANDWHDTH1068 0b1000  // 1.048 < 1.068 < 1.087
-#define FBANDWHDTH1107 0b1000  // 1.087  < 1.107  < 1.128
-#define FBANDWHDTH1148 0b1001  // 1.128  < 1.148  < 1.169
-#define FBANDWHDTH1189 0b1010  // 1.169  < 1.189  < 1.210
 /*
 #define CALREADREG 0x09 // calibration measurement address
 #define CALFREQREG 0x05 // calibration frequency address
@@ -64,71 +42,24 @@ repurposed to try controlling HMC900
 #define FINEREG 0x03 // fine setting address
 */
 
-#define READREG 0x0 //
+const int slaveSelectPin = 10;
 
-#define ENABLEREG 0x01 //
-#define ENABLEREGDEF 0b0000001100 //
+HMC900 hmc900(slaveSelectPin);
 
-#define SETTINGSREG 0x02 //
-#define SETTINGSREGDEF 0b00000001001 //
-
-#define CALREG 0x03 //
-#define CALREGDEF 0b0000 //
-
-#define CALBISTRSTROBEREG 0x04 //
-
-#define CLKPERIODREG 0x05 //
-#define CLKPERIODREGDEF 0x0000 //
-
-#define MEASUREADJUSTREG 0x06 //
-#define MEASUREADJUSTREGDEF 0x000 //
-
-#define MEASUREADJUSTREG 0x06 //
-#define MEASUREADJUSTREGDEF 0b0000 //
-
-#define CALSTATUSREG 0x08 // read ony
-
-#define CALCOUNTREG 0x09 // read only
-
-#define OTPVALUESREG 0x0A // read only
-
-#define OTPWRITENABLEREG 0x0B 
-#define OTPWRITENABLEREGDEF 0b0 
-
-#define OTPWRITEREG 0x0B 
-#define OTPWRITEREGDEF 0b0
-
-#define OTPWRITEPULSEREG 0x0D
-#define OTPWRITEPULSEREGDEF 0b0
-
-#define RCBISTENABLEREG 0x0E 
-#define RCBISTENABLEREGDEF 0b0 
-
-#define RCBISTOUTREG 0x0F
-#define RCBISTOUTREGDEF 0x00000 
-
-
-
-#define CHIPADDR 5
-
-#define USESETTING 0x01 // use settint address
-
-#define FREQWANTED 20 // user defined wanted cuttoff frequency (Mhz)
-#define CALFREQ 0b100111000100000 // 50Mhz ( 110000110101000 pour 40Mhz)
 
 
 
 // set pin 10 as the slave select for the digital pot:
-const int slaveSelectPin = 10;
 
 void setup() {
   // set the slaveSelectPin as an output:
   Serial.begin(115200);
-  pinMode (slaveSelectPin, OUTPUT);
-  // initialize SPI:
-  SPI.begin();
-  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
-  SPI.endTransaction();
+
+  if (!hmc900.begin()){
+    Serial.println("HMC900's initialisation failed");
+  }
+  hmc900.writeRegister(1,1);
+ 
   delay(1000);
   writeCoaseBandwidthCode(CBANDWHDTH20);
   //setCalibrationClockFrequency(20);
@@ -140,14 +71,14 @@ void loop() {
   //readRegister(SETTINGSREG);
 }
 
-
+//
 void filterBandwidthSetting(uint32_t calFreqMhz){
   uint32_t cal_count = calibration(calFreqMhz);
   setBandwidthCodes(cal_count);
   enableBit(true, ENABLEREG, 0b1000);
 }
 
-
+//
 uint32_t calibration(uint32_t calFreqMhz) {
   setCalibrationClockFrequency(calFreqMhz);
   enableBit(true, ENABLEREG, 0b10); //Enable RC Calibration circuit
@@ -169,7 +100,7 @@ uint32_t calibration(uint32_t calFreqMhz) {
   return readRegister(CALCOUNTREG);
 }
 
-
+//
 uint32_t builtInSelfTest(uint32_t calFreqMhz){
 
   softReset();
@@ -195,7 +126,7 @@ uint32_t builtInSelfTest(uint32_t calFreqMhz){
   return bistrResult;
 }
 
-
+//
 void writeCoaseBandwidthCode(uint32_t cbandwidthcode){
   
   uint32_t settingRegister = readRegister(SETTINGSREG);
@@ -221,7 +152,7 @@ void writeCoaseBandwidthCode(uint32_t cbandwidthcode){
   }
 }
 
-
+//
 void writeFineBandwidthCode(uint32_t fbandwidthcode){
   
   uint32_t calibrationRegister = readRegister(CALREG);
@@ -244,7 +175,7 @@ void writeFineBandwidthCode(uint32_t fbandwidthcode){
   }
 }
 
-
+//
 void setBandwidthCodes(float cal_count){
   float ctune = cal_count/10370000;
   float fBW_norm_coarse = FREQWANTED * ctune;
@@ -343,7 +274,7 @@ void setBandwidthCodes(float cal_count){
 
 }
 
-
+//
 void enableFilterQ(bool en){
   uint32_t enableRegister = readRegister(ENABLEREG);
   if (((enableRegister >> 3) &0b11111) == ENABLEREG)
@@ -401,7 +332,7 @@ void enableFilterQ(bool en){
   
 }
 
-
+//
 void enableDoubler(bool en){
   uint32_t enableRegister = readRegister(ENABLEREG);
   if (((enableRegister >> 3) &0b11111) == ENABLEREG)
@@ -465,7 +396,7 @@ void enableDoubler(bool en){
   
 }
 
-
+//
 void enableBistMode(bool en){
   uint32_t rcBistRegister = readRegister(RCBISTENABLEREG);
   if (((rcBistRegister >> 3) &0b11111) == RCBISTENABLEREG)
@@ -528,7 +459,7 @@ void enableBistMode(bool en){
   }
 }
 
-
+//
 bool enableBit(bool toEnable, byte registerOfBit, uint32_t bitToEnable){
   /*
   toEnable:
@@ -607,13 +538,13 @@ bool enableBit(bool toEnable, byte registerOfBit, uint32_t bitToEnable){
   }
 }
 
-
+//
 void softReset(){
   writeRegister(0, 0x20);
   writeRegister(0, 0x00);
 }
 
-
+//
 void setCalibrationClockFrequency(uint32_t freqMhz){
   /*
   Entre frequency in Mhz between 20 and 100
@@ -675,7 +606,7 @@ void setCalibrationClockFrequency(uint32_t freqMhz){
 
 }
 
-
+//
 unsigned int writeRegister(byte reg, uint32_t data) {
 
   uint32_t response = 0;
@@ -708,7 +639,7 @@ unsigned int writeRegister(byte reg, uint32_t data) {
   
 }
 
-
+//
 uint32_t readRegister(byte reg) {
 
   byte inByte = 0;           // incoming byte from the SPI
