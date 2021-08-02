@@ -2,10 +2,11 @@
 #include "Arduino.h"
 #include "HMC900.h"
 
+
 HMC900::HMC900(int slaveSelectPin)
+    :_slaveSelectPin{slaveSelectPin}
 {
-  pinMode(slaveSelectPin, OUTPUT);
-  int _slaveSelectPin = slaveSelectPin;
+  pinMode(_slaveSelectPin, OUTPUT);
 }
 
 bool HMC900::begin(){
@@ -14,11 +15,17 @@ bool HMC900::begin(){
   SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
   SPI.endTransaction();
 
+  delay(500);
   DEBUG_PRINTLN("Start of the Begin sequence");
+  
+  
+  DEBUG_PRINT("_slaveSelectPin: ");
+  DEBUG_PRINTLN(_slaveSelectPin);
     
   uint32_t settingRegister = readRegister(SETTINGSREG); // check if the communication works
   DEBUG_PRINT("return of the 'begin' communication test: ");
   DEBUG_PRINTLN2(settingRegister,BIN);
+  
   if (((settingRegister >> 3) &0b11111) == SETTINGSREG){
 	  return true;
   }else{
