@@ -429,6 +429,23 @@ void HMC900::writeCoaseBandwidthCode(uint32_t cbandwidthcode){
 }
 
 
+uint32_t HMC900::readCoaseBandwidthCode(){
+  
+  uint32_t settingRegister = readRegister(SETTINGSREG);
+  if (((settingRegister >> 3) &0b11111) == SETTINGSREG)
+  {
+    DEBUG_PRINTLN("reading SETTINGSREG succesfull"); 
+
+    settingRegister = settingRegister>>8; //pour enlever l'entete
+    return((settingRegister >> 6) & 0b1111); 
+
+  }else {
+    Serial.print("failed reading of SETTINGSREG: "); 
+    Serial.println(settingRegister, BIN); 
+  }
+}
+
+
 void HMC900::writeFineBandwidthCode(uint32_t fbandwidthcode){
   
   uint32_t calibrationRegister = readRegister(CALREG);
@@ -449,6 +466,25 @@ void HMC900::writeFineBandwidthCode(uint32_t fbandwidthcode){
       Serial.print(" vs "); 
       Serial.println(fbandwidthcode, BIN);      
     }  
+  }else {
+    Serial.print("failed reading of CALREG: "); 
+    Serial.println(calibrationRegister, BIN); 
+  }
+}
+
+
+uint32_t HMC900::readFineBandwidthCode(){
+  
+  uint32_t calibrationRegister = readRegister(CALREG);
+  if (((calibrationRegister >> 3) &0b11111) == CALREG)
+  {
+    DEBUG_PRINTLN("reading CALREG succesfull"); 
+    
+    calibrationRegister = readRegister(CALREG);
+    calibrationRegister = calibrationRegister>>8; //pour enlever l'entete
+
+    return(calibrationRegister, BIN); // Be carefull that you have to enable the fine bandwidth setting override bits (register 01 bit 4, force_cal_code, must be set).
+      
   }else {
     Serial.print("failed reading of CALREG: "); 
     Serial.println(calibrationRegister, BIN); 

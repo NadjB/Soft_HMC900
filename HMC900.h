@@ -115,7 +115,9 @@ class HMC900
     uint32_t calibration(uint32_t calFreqMhz);
     uint32_t builtInSelfTest(uint32_t calFreqMhz);
     void writeCoaseBandwidthCode(uint32_t cbandwidthcode);
+    uint32_t readCoaseBandwidthCode();
     void writeFineBandwidthCode(uint32_t fbandwidthcode);
+    uint32_t readFineBandwidthCode();
     void filterBandwidthSetting(uint32_t calFreqMhz);
     void setBandwidthCodes(float cal_count);
 		
