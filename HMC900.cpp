@@ -75,8 +75,8 @@ uint32_t HMC900::readRegister(byte reg) {
   digitalWrite(_slaveSelectPin, HIGH);
 
   
-  //DEBUG_PRINT("RAW response: ");
-  //DEBUG_PRINTLN2(response,BIN);
+  DEBUG_PRINT("RAW response: ");
+  DEBUG_PRINTLN2(response,BIN);
   
   if ((response &0b11) == 0b10)
   {
@@ -290,6 +290,26 @@ void HMC900::enableBistMode(bool en){
 }
 
 
+void HMC900::enableGain10dB(bool en){
+  //"0b10000" le bit correspondant a "gain_10dB"
+  if(enableBit(en, SETTINGSREG, 0b10000)){ 
+    DEBUG_PRINTLN("Setting of gain_10dB successfull");
+  }else{
+    Serial.println("Failed to set gain_10dB");
+  }
+}
+
+
+void HMC900::enableFineBandwidthCodes(bool en){
+  //"0b10000" le bit correspondant a "force_cal_code"
+  if(enableBit(en, ENABLEREG, 0b10000)){ 
+    DEBUG_PRINTLN("Setting of gain_10dB successfull");
+  }else{
+    Serial.println("Failed to set gain_10dB");
+  }
+}
+
+
 void HMC900::enableFilterQ(bool en){
   //"0b1000" le bit correspondant a "enable_RCBIST_mode"
   if(enableBit(en, RCBISTENABLEREG, 0b1)){ 
@@ -454,29 +474,35 @@ uint32_t HMC900::readCoaseBandwidthCode(){
 
 
 void HMC900::writeFineBandwidthCode(uint32_t fbandwidthcode){
-  
-  uint32_t calibrationRegister = readRegister(CALREG);
-  if (((calibrationRegister >> 3) &0b11111) == CALREG)
-  {
-    DEBUG_PRINTLN("reading CALREG succesfull"); 
 
-    writeRegister(CALREG, fbandwidthcode);
+  if(fbandwidthcode >= 0 && fbandwidthcode <= 11){
+       uint32_t calibrationRegister = readRegister(CALREG);
+     if (((calibrationRegister >> 3) &0b11111) == CALREG)
+     {
+       DEBUG_PRINTLN("reading CALREG succesfull"); 
+
+       writeRegister(CALREG, fbandwidthcode);
     
-    calibrationRegister = readRegister(CALREG);
-    calibrationRegister = calibrationRegister>>8; //pour enlever l'entete
-    if (calibrationRegister == fbandwidthcode)  
-    {
-      DEBUG_PRINTLN("Setting of the fine bandwidth code successfull");       
-    }else {
-      Serial.print("Failed setting of the fine bandwidth code: "); 
-      Serial.print(calibrationRegister, BIN); 
-      Serial.print(" vs "); 
-      Serial.println(fbandwidthcode, BIN);      
-    }  
-  }else {
-    Serial.print("failed reading of CALREG: "); 
-    Serial.println(calibrationRegister, BIN); 
+       calibrationRegister = readRegister(CALREG);
+       calibrationRegister = calibrationRegister>>8; //pour enlever l'entete
+       if (calibrationRegister == fbandwidthcode)  
+       {
+         DEBUG_PRINTLN("Setting of the fine bandwidth code successfull");       
+       }else {
+         Serial.print("Failed setting of the fine bandwidth code: "); 
+         Serial.print(calibrationRegister, BIN); 
+         Serial.print(" vs "); 
+         Serial.println(fbandwidthcode, BIN);      
+       }  
+     }else {
+       Serial.print("failed reading of CALREG: "); 
+       Serial.println(calibrationRegister, BIN); 
+     }
+  }else{
+     Serial.println("!!! fbandwidthcode must be betwin 0 and 11"); 
   }
+  
+
 }
 
 
@@ -490,7 +516,7 @@ uint32_t HMC900::readFineBandwidthCode(){
     calibrationRegister = readRegister(CALREG);
     calibrationRegister = calibrationRegister>>8; //pour enlever l'entete
 
-    return(calibrationRegister, BIN); // Be carefull that you have to enable the fine bandwidth setting override bits (register 01 bit 4, force_cal_code, must be set).
+    return(calibrationRegister); // Be carefull that you have to enable the fine bandwidth setting override bits (register 01 bit 4, force_cal_code, must be set).
       
   }else {
     Serial.print("failed reading of CALREG: "); 
