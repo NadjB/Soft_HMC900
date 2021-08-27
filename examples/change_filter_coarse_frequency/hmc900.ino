@@ -1,11 +1,7 @@
 /*
-
-
   * SDI - to digital pin 11 (MOSI pin)
   * SDO - to digital pin 12 (MISO pin)
   * CLK - to digital pin 13 (SCK pin)
-
-
 */
 
 
@@ -15,7 +11,7 @@
 
 const int slaveSelectPin = 10;
 
-HMC900 hmc900<true>(slaveSelectPin);
+HMC900 hmc900(slaveSelectPin);
 
 
 
@@ -34,7 +30,6 @@ void setup() {
   Serial.println(hmc900.readCoaseBandwidthCode(),BIN); //Aswer should be "1"
   hmc900.writeCoaseBandwidthCode(CBANDWHDTH20);
   Serial.println(hmc900.readCoaseBandwidthCode(),BIN); //Aswer should be "101"
-  //setCalibrationClockFrequency(20);
   
 }
 
